@@ -1,0 +1,2 @@
+def verify_anagrams(first_word, second_word):
+    return sorted(list(first_word.lower().replace(' ',''))) == sorted(list(second_word.lower().replace(' ','')))
