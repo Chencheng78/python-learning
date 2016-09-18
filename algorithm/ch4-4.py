@@ -6,6 +6,7 @@ def max_perm(M):
 		count[i] +=1
 	Q = [i for i in A if count[i] == 0]
 	print(Q)
+	print(count)
 	while Q:
 		i = Q.pop()
 		A.remove(i)
