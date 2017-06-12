@@ -113,7 +113,7 @@ def webui_finish(driver, t0, sheet, num, screenshots):
 	sleep(5)
 	while timeout < 200:
 		try:
-			reboot_finish = driver.find_element_by_id("Pwd").is_displayed()
+			reboot_finish = driver.find_element_by_xpath(".//*[@id='admin_pwd']").is_displayed()
 			t1 = time.time()
 			time_webui = t1 - t0
 			screenshots_name = screenshots + '\\success_%i.png' % num
@@ -157,8 +157,8 @@ def run(count):
 
 	for i in range(1, count+1):
 		driver = webdriver.Firefox()
-		login(driver, 'http://p.to', 'admin')
-		reboot(driver)
+		K2P.login_k2p(driver, 'http://p.to', 'admin')
+		K2P.reboot_k2p(driver)
 		t0 = time.time()
 		print time.ctime(t0)
 		sheet.write(i, 5, time.ctime(t0))
@@ -183,7 +183,8 @@ def run(count):
 		else:
 			sheet.write(i, 4, 'Fail')
 		driver.close()
-	book.save(r'k:/Reboot/Reboot_%s/test_%s.csv' % (current_day, current_time))
+		book.save(r'k:/Reboot/Reboot_%s/test_%s.csv' % (current_day, current_time))
+	# book.save(r'k:/Reboot/Reboot_%s/test_%s.csv' % (current_day, current_time))
 
 
 if __name__ == '__main__':
