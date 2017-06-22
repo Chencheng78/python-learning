@@ -11,6 +11,7 @@ import os
 import threading
 import re
 import subprocess
+from K3C_login import ping_baidu, ping_gw
 
 
 class K3C(object):
@@ -23,6 +24,7 @@ class K3C(object):
                                  '53.0', 'Content-Type': 'application/json'}
         self.login = {"method": "set", "module": {"security": {"login": {"username": "admin", "password": "YWRtaW4%3D"}}},
                  "_deviceType": "pc"}
+        self._client_list = {"method": "get", "module": {"device_manage": {"client_list": "null"}}, "_deviceType": "pc"}
         self._wifi_settings = {"method": "set",
                                "module": {
                                  "wireless":
@@ -52,6 +54,7 @@ class K3C(object):
         stok = json.loads(get_token.content)['module']['security']['login']['stok']
         return stok
 
+    # ==========WIFISET=========== #
     def wifi_set(self, band24=1, band5=1):
 
         send_data = self.base_url + 'stok=' + self.get_stok() + '/data'
@@ -63,6 +66,18 @@ class K3C(object):
     def get_ssid(self):
         return [self._wifi_settings['module']['wireless']['wifi_2g_config']['ssid'],
                 self._wifi_settings['module']['wireless']['wifi_5g_config']['ssid']]
+
+    # ==========DEVICE MANAGE=========== #
+    def online_status(self, mac_addr):
+        send_data = self.base_url + 'stok=' + self.get_stok() + '/data'
+        r = requests.post(send_data, headers=self.headers, data=json.dumps(self._client_list))
+        client_lists = json.loads(r.content)['module']['device_manage']['client_list']
+        for i in client_lists:
+            mac_addr = mac_addr.replace(':', '%3a')
+            if i['mac'] == mac_addr:
+                return [i['ip'], i['online_status']]
+        return 0
+        # return client_lists[0]['mac']
 
     def __repr__(self):
         return self.wifi_set()
@@ -148,7 +163,7 @@ class netsh(object):
             elif ssid_name.group(2) == self.ssid5:
                 print '5G connected.'
             else:
-                print '3 %s is not correct SSID under the test' % ssid_name.group(2)
+                print '%s is not correct SSID under the test' % ssid_name.group(2)
                 return 0
             return ssid_name.group(2)
         else:
@@ -156,7 +171,7 @@ class netsh(object):
             return 0
 
 
-def run(count, wifiset, command):
+def run(count, wifiset, command, mac):
     current_day = time.strftime('%Y_%m_%d', time.localtime())
     current_time = time.strftime('%H_%M_%S', time.localtime())
 
@@ -184,19 +199,42 @@ def run(count, wifiset, command):
     # run test loop
     for i in range(1, count+1):
         ret = 1
-        sheet.write(i, 0, i)
+
         # step 2: connect 2.4G wifi (retry 3 times)
         logging.info('No.%i: connecting to 2.4G network...' % i)
         command.connect_24g()
         sleep(5)
-        # step 3: check the connection status, set the fail flag if not connected.
+        # step 3-1: check the connection status from PC, set the fail flag if not connected.
         s1 = command.check_wlan_connection()
         logging.info('NO.%i: connected to SSID: %s' % (i, s1))
         if s1 != wifiset.get_ssid()[0]:
             # print 'failed step3'
             logging.warning('Failed to connect to correct SSID: %s' % wifiset.get_ssid()[0])
             ret = 0
-        # print ret
+        # step 3-2:  check the online statue on WEBUI and ping gateway/baidu.com.
+        dev_status = test.online_status(mac)
+        if not dev_status:
+            ret = 0
+            logging.warning('MAC:  %s is not listed on device list.' % mac)
+        elif dev_status[1] == '1':
+            cmd1 = 'ping 192.168.2.1 -n 1 -S ' + dev_status[0]
+            cmd2 = 'ping www.baidu.com -n 1 -S ' + dev_status[0]
+            a = subprocess.Popen(cmd1, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            line1 = a.stdout.read()
+            loss1 = re.search(u'(\()(.+)( 丢失\))', line1.decode('gbk'))
+            if loss1.group(2) != '0%':
+                ret = 0
+                logging.warning('cannot ping through 192.168.2.1')
+            b = subprocess.Popen(cmd2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            line2 = b.stdout.read()
+            loss2 = re.search(u'(\()(.+)( 丢失\))', line2.decode('gbk'))
+            if loss2.group(2) != '0%':
+                ret = 0
+                logging.warning('cannot ping through internet')
+        else:
+            ret = 0
+            logging.warning('device offline.')
+
         # step 4: shutdown 2.4G wifi interface.
         logging.info('shutting down wireless interface...')
         wifiset.wifi_set(0, 1)
@@ -209,31 +247,21 @@ def run(count, wifiset, command):
             logging.warning('FAILED, Wrong connection status!')
             sheet.write(i, 2, command.check_wlan_connection())
         # step 6 : set the results to excel.
+        sheet.write(i, 0, i)
         if ret:
             sheet.write(i, 1, 'PASS')
         else:
             sheet.write(i, 1, 'FAIL')
+        book.save(r'k:/Reboot/wifi_stability_%s/test_%s.csv' % (current_day, current_time))
         # step 7: teardown. restart wifi interface.
         wifiset.wifi_set()
         sleep(60)
         command.disconnect()
 
-    book.save(r'k:/Reboot/wifi_stability_%s/test_%s.csv' % (current_day, current_time))
     logging.info('DONE!')
 
 if __name__ == '__main__':
-    cmd = netsh('WLAN', '5FLAB', '5FLAB_5G')
-    # cmd.disconnect()
-    # sleep(3)
-    # cmd.connect_24g()
     test = K3C()
-    # test.wifi_set(0, 1)
-    # sleep(60)
-    # # print cmd.check_wlan_connection()
-    # a= test.get_ssid()
-    # print a[0]
-    # b = cmd.check_wlan_connection()
-    # print b
-    # if test.get_ssid()[0] == cmd.check_wlan_connection():
-    #     print 'ok'
-    run(10, test, cmd)
+    cmd = netsh('WLAN', '5FLAB', '5FLAB_5G')
+    run(10, test, cmd, '50:9a:4c:47:1e:ad')
+    #print test.online_status('50:9a:4c:47:1e:ad')

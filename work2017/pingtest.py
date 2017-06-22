@@ -4,8 +4,8 @@ import subprocess
 import os
 import re
 from time import sleep
-from K3C_wifiset import K3C
-from K3C_wifiset import netsh
+from K3C_ui_setting import K3C
+from K3C_ui_setting import netsh
 
 cmd = netsh('WLAN', '5FLAB', '5FLAB_5G')
 test = K3C()
