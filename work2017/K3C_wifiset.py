@@ -97,9 +97,18 @@ class netsh(object):
             if not check_profile:
                 raise ValueError('Please check the profile name and put the profile under current working directory.')
         except Exception as e:
-            print e
+            logging.warning(e)
+        sleep(2)
         cmd_24 = 'netsh wlan connect name="%s" interface="%s"' % (self.ssid24, self.interface)
-        connect24 = subprocess.check_output(cmd_24).decode('gbk')
+        # adding retry loops to increase the robustness.
+        try:
+            retry = 0
+            while retry < 3:
+                connect24 = subprocess.check_output(cmd_24).decode('gbk')
+                sleep(1)
+                retry += 1
+        except Exception as e:
+            logging.warning(e)
         return connect24
 
     def connect_5g(self):
@@ -114,7 +123,14 @@ class netsh(object):
         except Exception as e:
             print e
         cmd_5 = 'netsh wlan connect name=“%s" interface="%s"' % (self.ssid5, self.interface)
-        connect5 = subprocess.check_output(cmd_5).decode('gbk')
+        try:
+            retry = 0
+            while retry < 3:
+                connect5 = subprocess.check_output(cmd_5).decode('gbk')
+                sleep(1)
+                retry += 1
+        except Exception as e:
+            logging.warning(e)
         return connect5
 
     def check_wlan_connection(self):
@@ -145,7 +161,7 @@ def run(count, wifiset, command):
     current_time = time.strftime('%H_%M_%S', time.localtime())
 
     # logging.basicConfig(filename='wifiset.log', filemode='w', level=logging.DEBUG)
-    logging.basicConfig(level=logging.DEBUG,
+    logging.basicConfig(level=logging.INFO, filename='wifiset.log', filemode='w',
                         format='%(asctime)s %(levelname)s %(message)s',
                         datefmt='%d %b %Y %H:%M:%S')
     try:
@@ -170,12 +186,12 @@ def run(count, wifiset, command):
         ret = 1
         sheet.write(i, 0, i)
         # step 2: connect 2.4G wifi (retry 3 times)
-        logging.info('No.%i: connect to 2.4G SSID' % i)
+        logging.info('No.%i: connecting to 2.4G network...' % i)
         command.connect_24g()
         sleep(5)
         # step 3: check the connection status, set the fail flag if not connected.
         s1 = command.check_wlan_connection()
-        logging.info('NO.%i: connected to %s' % (i, s1))
+        logging.info('NO.%i: connected to SSID: %s' % (i, s1))
         if s1 != wifiset.get_ssid()[0]:
             # print 'failed step3'
             logging.warning('Failed to connect to correct SSID: %s' % wifiset.get_ssid()[0])
@@ -220,4 +236,4 @@ if __name__ == '__main__':
     # print b
     # if test.get_ssid()[0] == cmd.check_wlan_connection():
     #     print 'ok'
-    run(1, test, cmd)
+    run(10, test, cmd)
