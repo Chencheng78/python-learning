@@ -11,7 +11,7 @@ import os
 import threading
 import re
 import subprocess
-from K3C_login import ping_baidu, ping_gw
+
 
 
 class K3C(object):
@@ -24,8 +24,8 @@ class K3C(object):
                                  '53.0', 'Content-Type': 'application/json'}
         self.login = {"method": "set", "module": {"security": {"login": {"username": "admin", "password": "YWRtaW4%3D"}}},
                  "_deviceType": "pc"}
-        self._client_list = {"method": "get", "module": {"device_manage": {"client_list": "null"}}, "_deviceType": "pc"}
-        self._wifi_settings = {"method": "set",
+        self.client_list = {"method": "get", "module": {"device_manage": {"client_list": "null"}}, "_deviceType": "pc"}
+        self.wifi_settings = {"method": "set",
                                "module": {
                                  "wireless":
                                  {"smart_connect": {"enable": "0"},
@@ -58,19 +58,19 @@ class K3C(object):
     def wifi_set(self, band24=1, band5=1):
 
         send_data = self.base_url + 'stok=' + self.get_stok() + '/data'
-        self._wifi_settings['module']['wireless']['wifi_2g_config']['enable'] = str(band24)
-        self._wifi_settings['module']['wireless']['wifi_5g_config']['enable'] = str(band5)
-        r = requests.post(send_data, headers=self.headers, data=json.dumps(self._wifi_settings))
+        self.wifi_settings['module']['wireless']['wifi_2g_config']['enable'] = str(band24)
+        self.wifi_settings['module']['wireless']['wifi_5g_config']['enable'] = str(band5)
+        r = requests.post(send_data, headers=self.headers, data=json.dumps(self.wifi_settings))
         return r.content
 
     def get_ssid(self):
-        return [self._wifi_settings['module']['wireless']['wifi_2g_config']['ssid'],
-                self._wifi_settings['module']['wireless']['wifi_5g_config']['ssid']]
+        return [self.wifi_settings['module']['wireless']['wifi_2g_config']['ssid'],
+                self.wifi_settings['module']['wireless']['wifi_5g_config']['ssid']]
 
     # ==========DEVICE MANAGE=========== #
     def online_status(self, mac_addr):
         send_data = self.base_url + 'stok=' + self.get_stok() + '/data'
-        r = requests.post(send_data, headers=self.headers, data=json.dumps(self._client_list))
+        r = requests.post(send_data, headers=self.headers, data=json.dumps(self.client_list))
         client_lists = json.loads(r.content)['module']['device_manage']['client_list']
         for i in client_lists:
             mac_addr = mac_addr.replace(':', '%3a')
@@ -122,31 +122,34 @@ class netsh(object):
                 connect24 = subprocess.check_output(cmd_24).decode('gbk')
                 sleep(1)
                 retry += 1
+            return connect24
         except Exception as e:
             logging.warning(e)
-        return connect24
 
     def connect_5g(self):
         profile = 'netsh wlan add profile filename="%s-%s.xml" interface="%s"' \
                   % (self.interface, self.ssid5, self.interface)
-        # print profile
+        print profile
         try:
+            print 'try'
             add_profile = subprocess.check_output(profile).decode('gbk')
             check_profile = re.search(u'(已将配置文件)', add_profile)
+            print add_profile
             if not check_profile:
                 raise ValueError('Please check the profile name and put the profile under current working directory.')
         except Exception as e:
             print e
-        cmd_5 = 'netsh wlan connect name=“%s" interface="%s"' % (self.ssid5, self.interface)
+        sleep(2)
+        cmd_5 = 'netsh wlan connect name="%s" interface="%s"' % (self.ssid5, self.interface)
         try:
             retry = 0
             while retry < 3:
                 connect5 = subprocess.check_output(cmd_5).decode('gbk')
                 sleep(1)
                 retry += 1
+            return connect5
         except Exception as e:
             logging.warning(e)
-        return connect5
 
     def check_wlan_connection(self):
         status = netsh.show_wlan_status()
@@ -171,7 +174,7 @@ class netsh(object):
             return 0
 
 
-def run(count, wifiset, command, mac):
+def run(count, band, wifiset, command, mac):
     current_day = time.strftime('%Y_%m_%d', time.localtime())
     current_time = time.strftime('%H_%M_%S', time.localtime())
 
@@ -201,16 +204,30 @@ def run(count, wifiset, command, mac):
         ret = 1
 
         # step 2: connect 2.4G wifi (retry 3 times)
-        logging.info('No.%i: connecting to 2.4G network...' % i)
-        command.connect_24g()
-        sleep(5)
+        if band == '24':
+            logging.info('No.%i: connecting to 2.4G network...' % i)
+            command.connect_24g()
+            sleep(8)
         # step 3-1: check the connection status from PC, set the fail flag if not connected.
-        s1 = command.check_wlan_connection()
-        logging.info('NO.%i: connected to SSID: %s' % (i, s1))
-        if s1 != wifiset.get_ssid()[0]:
-            # print 'failed step3'
-            logging.warning('Failed to connect to correct SSID: %s' % wifiset.get_ssid()[0])
-            ret = 0
+            s1 = command.check_wlan_connection()
+            logging.info('NO.%i: connected to SSID: %s' % (i, s1))
+            if s1 != wifiset.get_ssid()[0]:
+                # print 'failed step3'
+                logging.warning('Failed to connect to correct SSID: %s' % wifiset.get_ssid()[0])
+                ret = 0
+        elif band == '5':
+            logging.info('No.%i: connecting to 5G network...' % i)
+            command.connect_5g()
+            sleep(8)
+            # step 3-1: check the connection status from PC, set the fail flag if not connected.
+            s1 = command.check_wlan_connection()
+            logging.info('NO.%i: connected to SSID: %s' % (i, s1))
+            if s1 != wifiset.get_ssid()[0]:
+                # print 'failed step3'
+                logging.warning('Failed to connect to correct SSID: %s' % wifiset.get_ssid()[1])
+                ret = 0
+        else:
+            raise ValueError('The band parameter should be either "2.4" or "5".')
         # step 3-2:  check the online statue on WEBUI and ping gateway/baidu.com.
         dev_status = test.online_status(mac)
         if not dev_status:
@@ -224,12 +241,14 @@ def run(count, wifiset, command, mac):
             loss1 = re.search(u'(\()(.+)( 丢失\))', line1.decode('gbk'))
             if loss1.group(2) != '0%':
                 ret = 0
+                logging.info(line1.decode('gbk'))
                 logging.warning('cannot ping through 192.168.2.1')
             b = subprocess.Popen(cmd2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             line2 = b.stdout.read()
             loss2 = re.search(u'(\()(.+)( 丢失\))', line2.decode('gbk'))
             if loss2.group(2) != '0%':
                 ret = 0
+                logging.info(line2.decode('gbk'))
                 logging.warning('cannot ping through internet')
         else:
             ret = 0
@@ -237,14 +256,18 @@ def run(count, wifiset, command, mac):
 
         # step 4: shutdown 2.4G wifi interface.
         logging.info('shutting down wireless interface...')
-        wifiset.wifi_set(0, 1)
-        sleep(60)
+        if band == '2.4':
+            wifiset.wifi_set(0, 1)
+        else:
+            wifiset.wifi_set(1, 0)
+        sleep(70)
         # step 5: check the wifi connection, if status is not 'not connected', mark the connected SSID.
         s2 = command.check_wlan_connection()
         logging.info('connection status: %s' % s2)
         if s2:
             ret = 0
             logging.warning('FAILED, Wrong connection status!')
+            logging.info(command.show_wlan_status())
             sheet.write(i, 2, command.check_wlan_connection())
         # step 6 : set the results to excel.
         sheet.write(i, 0, i)
@@ -263,5 +286,9 @@ def run(count, wifiset, command, mac):
 if __name__ == '__main__':
     test = K3C()
     cmd = netsh('WLAN', '5FLAB', '5FLAB_5G')
-    run(10, test, cmd, '50:9a:4c:47:1e:ad')
+    #run(1, '5', test, cmd, '50:9a:4c:47:1e:ad')
     #print test.online_status('50:9a:4c:47:1e:ad')
+    #print test.wifi_set(0, 1)
+    cmd.connect_5g()
+
+
