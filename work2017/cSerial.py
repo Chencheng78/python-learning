@@ -1,4 +1,4 @@
-import serial
+import myserial
 import time
 import sys
 import datetime
@@ -16,7 +16,7 @@ class cSerial:
 
     def connect(self, serial_port_number, baud_rate):
         try:
-            self.connection = serial.Serial(serial_port_number, baud_rate, timeout = self.timeOut)
+            self.connection = myserial.Serial(serial_port_number, baud_rate, timeout = self.timeOut)
         except:
             info = sys.exc_info()
             if self.isDebug: print "connecting exceptionally" + str(info[0]) + ": " + str(info[1])

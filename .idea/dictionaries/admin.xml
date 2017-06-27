@@ -2,6 +2,7 @@
   <dictionary name="admin">
     <words>
       <w>addr</w>
+      <w>myserial</w>
       <w>netsh</w>
       <w>ssid</w>
       <w>stok</w>

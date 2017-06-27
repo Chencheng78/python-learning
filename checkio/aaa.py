@@ -1,10 +1,10 @@
 def checkio(num):
-	for i in range(2,37):
-		try:
-			if int(num,i) % (i -1) == 0:
-				return i
-		except ValueError as e: pass
-	return 0
+    for i in range(2,37):
+        try:
+            if int(num,i) % (i -1) == 0:
+                return i
+        except ValueError as e: pass
+    return 0
 
 # print(checkio("18"))
 # print(checkio("1010101011"))
@@ -56,4 +56,11 @@ class Car(object):
         print 'vroooooom'
 
 
-from 
+def var_args(farg, *args):
+    print "formal arg:", farg
+    print type(args)
+
+    for arg in args:
+        print "another arg:", arg
+
+var_args(1, "two", 3)

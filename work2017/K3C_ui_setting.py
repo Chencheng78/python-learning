@@ -13,18 +13,19 @@ import re
 import subprocess
 
 
-
 class K3C(object):
 
     def __init__(self):
-        # self.band24 = str(band24)
-        # self.band5 = str(band5)
+
         self.base_url = 'http://p.to/cgi-bin/'
         self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:53.0) Gecko/20100101 Firefox/'
                                  '53.0', 'Content-Type': 'application/json'}
+        # === get stok / Password (base64 encryption): admin  === #
         self.login = {"method": "set", "module": {"security": {"login": {"username": "admin", "password": "YWRtaW4%3D"}}},
                  "_deviceType": "pc"}
+        # === get device list === #
         self.client_list = {"method": "get", "module": {"device_manage": {"client_list": "null"}}, "_deviceType": "pc"}
+        # === Set/get wifi settings === #
         self.wifi_settings = {"method": "set",
                                "module": {
                                  "wireless":
@@ -48,6 +49,12 @@ class K3C(object):
                                                      "band_width": "3",
                                                      "ap_isolate": "0"}}},
                                "_deviceType": "pc"}
+        # === get router status === #
+        self.router_status = {"method": "get", "module": {"device": {"info": "null"},
+                                                          "network": {"wan_status": "null", "lan": "null"},
+                                                          "wireless": {"wifi_2g_status": "null", "wifi_5g_status": "null"},
+                                                          "usb": {"device": "null"}}, "_deviceType": "pc"}
+
 
     def get_stok(self):
         get_token = requests.post(self.base_url, data=json.dumps(self.login), headers=self.headers)
@@ -77,7 +84,13 @@ class K3C(object):
             if i['mac'] == mac_addr:
                 return [i['ip'], i['online_status']]
         return 0
-        # return client_lists[0]['mac']
+
+    # =========ADVANCED========= #
+    def get_router_status(self):
+        send_data = self.base_url + 'stok=' + self.get_stok() + '/data'
+        r = requests.post(send_data, headers=self.headers, data=json.dumps(self.router_status))
+        status = json.loads(r.content)
+        return status
 
     def __repr__(self):
         return self.wifi_set()
@@ -289,6 +302,7 @@ if __name__ == '__main__':
     #run(1, '5', test, cmd, '50:9a:4c:47:1e:ad')
     #print test.online_status('50:9a:4c:47:1e:ad')
     #print test.wifi_set(0, 1)
-    cmd.connect_5g()
+    #cmd.connect_5g()
+    print test.get_router_status()
 
 
