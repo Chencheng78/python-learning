@@ -54,7 +54,8 @@ class K3C(object):
                                                           "network": {"wan_status": "null", "lan": "null"},
                                                           "wireless": {"wifi_2g_status": "null", "wifi_5g_status": "null"},
                                                           "usb": {"device": "null"}}, "_deviceType": "pc"}
-
+        # === firmware upgrade === #
+        # self.firmware =
 
     def get_stok(self):
         get_token = requests.post(self.base_url, data=json.dumps(self.login), headers=self.headers)
@@ -91,6 +92,17 @@ class K3C(object):
         r = requests.post(send_data, headers=self.headers, data=json.dumps(self.router_status))
         status = json.loads(r.content)
         return status
+
+    def upgrade(self, files):
+        firmware_dir = {'files': open(files, 'rb')}
+        send_data = self.base_url + 'stok=' + self.get_stok() + '/system/upgrade'
+        r = requests.post(send_data, files=firmware_dir)
+        return r.status_code
+
+    def reboot(self):
+        send_data = self.base_url + 'stok=' + self.get_stok() + '/system/reboot'
+        r = requests.post(send_data, headers=self.headers, data=json.dumps(self.router_status))
+        return r.status_code
 
     def __repr__(self):
         return self.wifi_set()
