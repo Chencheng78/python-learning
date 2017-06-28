@@ -22,7 +22,7 @@ print cmd.show_wlan_status()
 status = cmd.check_wlan_connection()
 print status
 
-test.wifi_set(1, 1)
+test.wifi_switch(1, 1)
 sleep(30)
 status = cmd.check_wlan_connection()
 print status

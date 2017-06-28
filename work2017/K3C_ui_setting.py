@@ -11,18 +11,21 @@ import os
 import threading
 import re
 import subprocess
+import base64
 
 
 class K3C(object):
 
-    def __init__(self):
+    def __init__(self, username, password):
 
         self.base_url = 'http://p.to/cgi-bin/'
         self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:53.0) Gecko/20100101 Firefox/'
                                  '53.0', 'Content-Type': 'application/json'}
         # === get stok / Password (base64 encryption): admin  === #
-        self.login = {"method": "set", "module": {"security": {"login": {"username": "admin", "password": "YWRtaW4%3D"}}},
-                 "_deviceType": "pc"}
+        self.username = username
+        self.password = base64.b64encode(password)
+        # self.login = {"method": "set", "module": {"security": {"login": {"username": "admin", "password": "YWRtaW4%3D"}}}, "_deviceType": "pc"}
+        self.login = {"method": "set", "module": {"security": {"login": {"username": self.username, "password": self.password}}}, "_deviceType": "pc"}
         # === get device list === #
         self.client_list = {"method": "get", "module": {"device_manage": {"client_list": "null"}}, "_deviceType": "pc"}
         # === Set/get wifi settings === #
@@ -30,7 +33,7 @@ class K3C(object):
                                "module": {
                                  "wireless":
                                  {"smart_connect": {"enable": "0"},
-                                  "wifi_2g_config": {"enable": "0",
+                                  "wifi_2g_config": {"enable": "1",
                                                      "ssid": "5FLAB",
                                                      "password": "11111111",
                                                      "hidden": "0",
@@ -40,7 +43,7 @@ class K3C(object):
                                                      "ap_isolate": "0",
                                                      "mu_mimo": "1",
                                                      "beamforming": "1"},
-                                  "wifi_5g_config": {"enable": "0",
+                                  "wifi_5g_config": {"enable": "1",
                                                      "ssid": "5FLAB_5G",
                                                      "password": "11111111",
                                                      "hidden": "0",
@@ -55,7 +58,7 @@ class K3C(object):
                                                           "wireless": {"wifi_2g_status": "null", "wifi_5g_status": "null"},
                                                           "usb": {"device": "null"}}, "_deviceType": "pc"}
         # === firmware upgrade === #
-        # self.firmware =
+        # self.firmware
 
     def get_stok(self):
         get_token = requests.post(self.base_url, data=json.dumps(self.login), headers=self.headers)
@@ -63,11 +66,37 @@ class K3C(object):
         return stok
 
     # ==========WIFISET=========== #
-    def wifi_set(self, band24=1, band5=1):
+    def wifi_switch(self, band24=1, band5=1):
 
         send_data = self.base_url + 'stok=' + self.get_stok() + '/data'
         self.wifi_settings['module']['wireless']['wifi_2g_config']['enable'] = str(band24)
         self.wifi_settings['module']['wireless']['wifi_5g_config']['enable'] = str(band5)
+        r = requests.post(send_data, headers=self.headers, data=json.dumps(self.wifi_settings))
+        return r.content
+
+    # MODE: 0=BGN, 1=BG ONLY, 2=N ONLY | CHANNEL: 0=AUTO; 1~13 | BANDWIDTH 0=20 1=20/40 2=40
+    def wifi_ssid_set24(self, ssid, password, hidden=0, mode=0, channel=0, bandwidth=1, ap_isolate=0):
+        self.wifi_settings['module']['wireless']['wifi_2g_config']['ssid'] = str(ssid)
+        self.wifi_settings['module']['wireless']['wifi_2g_config']['password'] = password
+        self.wifi_settings['module']['wireless']['wifi_2g_config']['hidden'] = str(hidden)
+        self.wifi_settings['module']['wireless']['wifi_2g_config']['mode'] = str(mode)
+        self.wifi_settings['module']['wireless']['wifi_2g_config']['channel'] = str(channel)
+        self.wifi_settings['module']['wireless']['wifi_2g_config']['band_width'] = str(bandwidth)
+        self.wifi_settings['module']['wireless']['wifi_2g_config']['ap_isolate'] = str(ap_isolate)
+        send_data = self.base_url + 'stok=' + self.get_stok() + '/data'
+        r = requests.post(send_data, headers=self.headers, data=json.dumps(self.wifi_settings))
+        return r.content
+
+    # MODE: 0=A/N/AC,1=N/AC ONLY | CHANNEL: 0=AUTO, 36~48;149~165 | BANDWIDTH: 0=20,1=40,2=80,3=20/40/80
+    def wifi_ssid_set5(self, ssid, password, hidden=0, mode=0, channel=0, bandwidth=3, ap_isolate=0):
+        self.wifi_settings['module']['wireless']['wifi_5g_config']['ssid'] = str(ssid)
+        self.wifi_settings['module']['wireless']['wifi_5g_config']['password'] = password
+        self.wifi_settings['module']['wireless']['wifi_5g_config']['hidden'] = str(hidden)
+        self.wifi_settings['module']['wireless']['wifi_5g_config']['mode'] = str(mode)
+        self.wifi_settings['module']['wireless']['wifi_5g_config']['channel'] = str(channel)
+        self.wifi_settings['module']['wireless']['wifi_5g_config']['band_width'] = str(bandwidth)
+        self.wifi_settings['module']['wireless']['wifi_5g_config']['ap_isolate'] = str(ap_isolate)
+        send_data = self.base_url + 'stok=' + self.get_stok() + '/data'
         r = requests.post(send_data, headers=self.headers, data=json.dumps(self.wifi_settings))
         return r.content
 
@@ -104,8 +133,39 @@ class K3C(object):
         r = requests.post(send_data, headers=self.headers, data=json.dumps(self.router_status))
         return r.status_code
 
+    def reset(self):
+        send_data = self.base_url + 'stok=' + self.get_stok() + '/system/reset'
+        r = requests.post(send_data, headers=self.headers, data=json.dumps(self.router_status))
+        return r.status_code
+
+    def register(self):
+        reg = {"method": "set", "module": {"security": {"register": {"username":"admin123", "password": "YWRtaW4%3D"}}}, "_deviceType":"pc"}
+        timezone = {"method": "set", "module": {"time_zone": {"config": {"region": "00800"}}}, "_deviceType": "pc"}
+        network = {"method": "set", "module": {"network": {"wan": {"protocol": "dhcp"}, "dhcp": {}}}, "_deviceType": "pc"}
+        wifi = {"method": "set", "module": {"welcome": {"config": {"guide": "0"}},
+                                     "wireless": {"smart_connect": {"enable": "0"},
+                                                  "wifi_2g_config": {"ssid": "%40PHICOMM_3A", "password": ""},
+                                                  "wifi_5g_config": {"ssid": "%40PHICOMM_3A_5G", "password": ""}}},
+         "_deviceType": "pc"}
+        r1 = requests.get('http://p.to/cgi-bin/pc/setLgPwd.htm', headers=self.headers)
+        time.sleep(0.5)
+        r2 = requests.post(self.base_url, headers=self.headers, data=json.dumps(reg))
+        time.sleep(0.5)
+
+        stok = json.loads(r2.content)['module']['security']['register']['stok']
+        send_data = self.base_url + 'stok=' + stok + '/data'
+        r3 = requests.post(send_data, headers=self.headers, data=json.dumps(timezone))
+        time.sleep(0.5)
+        print r3.content
+        r4 = requests.post(send_data, headers=self.headers, data=json.dumps(network))
+        time.sleep(0.5)
+        print r4.content
+        r5 = requests.post(send_data, headers=self.headers, data=json.dumps(wifi))
+
+        return r5.content
+
     def __repr__(self):
-        return self.wifi_set()
+        return self.wifi_settings
 
 
 class netsh(object):
@@ -220,7 +280,7 @@ def run(count, band, wifiset, command, mac):
 
     # step 1: initialize ENV.
     logging.info('DUT and client initializing...')
-    wifiset.wifi_set()
+    wifiset.wifi_switch()
     command.disconnect()
     sleep(60)
 
@@ -282,9 +342,9 @@ def run(count, band, wifiset, command, mac):
         # step 4: shutdown 2.4G wifi interface.
         logging.info('shutting down wireless interface...')
         if band == '2.4':
-            wifiset.wifi_set(0, 1)
+            wifiset.wifi_switch(0, 1)
         else:
-            wifiset.wifi_set(1, 0)
+            wifiset.wifi_switch(1, 0)
         sleep(70)
         # step 5: check the wifi connection, if status is not 'not connected', mark the connected SSID.
         s2 = command.check_wlan_connection()
@@ -302,19 +362,21 @@ def run(count, band, wifiset, command, mac):
             sheet.write(i, 1, 'FAIL')
         book.save(r'k:/Reboot/wifi_stability_%s/test_%s.csv' % (current_day, current_time))
         # step 7: teardown. restart wifi interface.
-        wifiset.wifi_set()
+        wifiset.wifi_switch()
         sleep(60)
         command.disconnect()
 
     logging.info('DONE!')
 
 if __name__ == '__main__':
-    test = K3C()
+    test = K3C('admin', 'admin')
     cmd = netsh('WLAN', '5FLAB', '5FLAB_5G')
     #run(1, '5', test, cmd, '50:9a:4c:47:1e:ad')
     #print test.online_status('50:9a:4c:47:1e:ad')
     #print test.wifi_set(0, 1)
     #cmd.connect_5g()
-    print test.get_router_status()
+    #print test.reset()
+    #sleep(300)
+    print test.wifi_ssid_set5('123321123321', '11111111')
 
 
