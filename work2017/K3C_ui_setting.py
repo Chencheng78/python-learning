@@ -139,7 +139,7 @@ class K3C(object):
         return r.status_code
 
     def register(self):
-        reg = {"method": "set", "module": {"security": {"register": {"username":"admin123", "password": "YWRtaW4%3D"}}}, "_deviceType":"pc"}
+        reg = {"method": "set", "module": {"security": {"register": {"username":self.login, "password": self.password}}}, "_deviceType":"pc"}
         timezone = {"method": "set", "module": {"time_zone": {"config": {"region": "00800"}}}, "_deviceType": "pc"}
         network = {"method": "set", "module": {"network": {"wan": {"protocol": "dhcp"}, "dhcp": {}}}, "_deviceType": "pc"}
         wifi = {"method": "set", "module": {"welcome": {"config": {"guide": "0"}},
@@ -377,6 +377,6 @@ if __name__ == '__main__':
     #cmd.connect_5g()
     #print test.reset()
     #sleep(300)
-    print test.wifi_ssid_set5('123321123321', '11111111')
+    print test.wifi_ssid_set5('5FLAB_5G','11111111',hidden=0)
 
 
