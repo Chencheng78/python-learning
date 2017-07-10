@@ -57,6 +57,13 @@ class K3C(object):
                                                           "network": {"wan_status": "null", "lan": "null"},
                                                           "wireless": {"wifi_2g_status": "null", "wifi_5g_status": "null"},
                                                           "usb": {"device": "null"}}, "_deviceType": "pc"}
+        # === internet settings === #
+        self.pppoe_json = {"method": "set", "module": {"network": {
+            "wan": {"protocol": "pppoe", "clone_mode": "0", "mac": "", "source_mac": "74%3A7D%3A24%3A53%3AC6%3A3A"},
+            "pppoe": {"username": "admin", "password": "admin", "server": "", "mtu": "1480", "dns_mode": "0",
+                      "dns_pri": "", "dns_sec": ""}}}, "_deviceType": "pc"}
+        self.dhcp_json = {"method":"set","module":{"network":{"wan":{"protocol":"dhcp","clone_mode":"0","mac":"","source_mac":"74%3A7D%3A24%3A53%3AC6%3A3A"},"dhcp":{"mtu":"1500","dns_mode":"0","dns_pri":"","dns_sec":""}}},"_deviceType":"pc"}
+
         # === firmware upgrade === #
         # self.firmware
 
@@ -121,6 +128,20 @@ class K3C(object):
         r = requests.post(send_data, headers=self.headers, data=json.dumps(self.router_status))
         status = json.loads(r.content)
         return status
+
+    def set_internet_pppoe(self):
+        mac_addr = self.get_router_status()['module']['device']['info']['mac']
+        self.pppoe_json['module']['network']['wan']['source_mac'] = mac_addr
+        send_data = self.base_url + 'stok=' + self.get_stok() + '/data'
+        r = requests.post(send_data, headers=self.headers, data=json.dumps(self.pppoe_json))
+        return r.content
+
+    def set_internet_dhcp(self):
+        mac_addr = self.get_router_status()['module']['device']['info']['mac']
+        self.dhcp_json['module']['network']['wan']['source_mac'] = mac_addr
+        send_data = self.base_url + 'stok=' + self.get_stok() + '/data'
+        r = requests.post(send_data, headers=self.headers, data=json.dumps(self.dhcp_json))
+        return r.content
 
     def upgrade(self, files):
         firmware_dir = {'files': open(files, 'rb')}
@@ -370,13 +391,35 @@ def run(count, band, wifiset, command, mac):
 
 if __name__ == '__main__':
     test = K3C('admin', 'admin')
-    cmd = netsh('WLAN', '5FLAB', '5FLAB_5G')
+    #cmd = netsh('WLAN', '5FLAB', '5FLAB_5G')
     #run(1, '5', test, cmd, '50:9a:4c:47:1e:ad')
     #print test.online_status('50:9a:4c:47:1e:ad')
     #print test.wifi_set(0, 1)
     #cmd.connect_5g()
     #print test.reset()
     #sleep(300)
-    print test.wifi_ssid_set5('5FLAB_5G','11111111',hidden=0)
+    #print test.wifi_ssid_set5('5FLAB_5G','11111111',hidden=0)
+
+    #print test.get_router_status()
+    #print test.get_router_status()['module']['device']['info']['mac']
+    while 1:
+        test.set_internet_dhcp()
+        time.sleep(20)
+        test.wifi_ssid_set5('Repo_issue5', '11111111', hidden=0, mode=1, channel=149, bandwidth=1)
+        time.sleep(5)
+        test.wifi_ssid_set24('Repo_issue24', '11111111', hidden=0, mode=2, channel=1, bandwidth=2)
+        time.sleep(20)
+        print test.get_router_status()
+        time.sleep(1)
+        test.set_internet_pppoe()
+        time.sleep(40)
+        test.wifi_ssid_set5('Repo_issue5', '11111111')
+        time.sleep(5)
+        test.wifi_ssid_set24('Repo_issue24', '11111111')
+        time.sleep(20)
+        print test.get_router_status()
+        time.sleep(1)
+
+
 
 
