@@ -159,15 +159,20 @@ class K3C(object):
         r = requests.post(send_data, headers=self.headers, data=json.dumps(self.router_status))
         return r.status_code
 
-    def register(self):
+    def register(self, method, region, ssid24, ssid5):
         reg = {"method": "set", "module": {"security": {"register": {"username":self.login, "password": self.password}}}, "_deviceType":"pc"}
-        timezone = {"method": "set", "module": {"time_zone": {"config": {"region": "00800"}}}, "_deviceType": "pc"}
-        network = {"method": "set", "module": {"network": {"wan": {"protocol": "dhcp"}, "dhcp": {}}}, "_deviceType": "pc"}
+        timezone = {"method": "set", "module": {"time_zone": {"config": {"region": "10100"}}}, "_deviceType": "pc"}
+        network_dhcp = {"method": "set", "module": {"network": {"wan": {"protocol": "dhcp"}, "dhcp": {}}}, "_deviceType": "pc"}
+        network_pppoe = {"method": "set", "module": {"network": {"wan": {"protocol": "pppoe"}, "pppoe": {"username": "admin", "password": "admin"}}},
+         "_deviceType": "pc"}
         wifi = {"method": "set", "module": {"welcome": {"config": {"guide": "0"}},
                                      "wireless": {"smart_connect": {"enable": "0"},
-                                                  "wifi_2g_config": {"ssid": "%40PHICOMM_3A", "password": ""},
-                                                  "wifi_5g_config": {"ssid": "%40PHICOMM_3A_5G", "password": ""}}},
+                                                  "wifi_2g_config": {"ssid": "%40PHICOMM_3A111", "password": ""},
+                                                  "wifi_5g_config": {"ssid": "%40PHICOMM_3A_5G111", "password": ""}}},
          "_deviceType": "pc"}
+        timezone['module']['time_zone']['config']['region'] = region
+        wifi['module']['wireless']['wifi_2g_config']['ssid'] = ssid24
+        wifi['module']['wireless']['wifi_5g_config']['ssid'] = ssid5
         r1 = requests.get('http://p.to/cgi-bin/pc/setLgPwd.htm', headers=self.headers)
         time.sleep(0.5)
         r2 = requests.post(self.base_url, headers=self.headers, data=json.dumps(reg))
@@ -178,12 +183,19 @@ class K3C(object):
         r3 = requests.post(send_data, headers=self.headers, data=json.dumps(timezone))
         time.sleep(0.5)
         print r3.content
-        r4 = requests.post(send_data, headers=self.headers, data=json.dumps(network))
+        if method == 'DHCP':
+            r4 = requests.post(send_data, headers=self.headers, data=json.dumps(network_dhcp))
+        elif method == 'PPPoE':
+            r4 = requests.post(send_data, headers=self.headers, data=json.dumps(network_pppoe))
+        else:
+            raise ValueError('Method should be either "DHCP" or "PPPoE"')
         time.sleep(0.5)
         print r4.content
         r5 = requests.post(send_data, headers=self.headers, data=json.dumps(wifi))
-
-        return r5.content
+        if r1.status_code == r2.status_code == r3.status_code == r4.status_code == r5.status_code == 200:
+            return 0
+        else:
+            return 1
 
     def __repr__(self):
         return self.wifi_settings
@@ -278,6 +290,28 @@ class netsh(object):
         else:
             print 'not connected!'
             return 0
+
+
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '+'):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    sys.stdout.write('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix))
+    sys.stdout.flush()
+    # Print New Line on Complete
+    if iteration == total:
+        print()
 
 
 def run(count, band, wifiset, command, mac):
@@ -391,6 +425,16 @@ def run(count, band, wifiset, command, mac):
 
 if __name__ == '__main__':
     test = K3C('admin', 'admin')
+    ret3 = test.get_router_status()
+    ssid24 = 'K3C_TEST_24_0'
+    ssid5 = 'K3C_TEST_24_0'
+    if ret3['module']['network']['wan_status']['protocol'] == 'pppoe' and \
+                    ret3['module']['wireless']['wifi_2g_status']['ssid'] == ssid24 and \
+                    ret3['module']['wireless']['wifi_5g_status']['ssid'] == ssid5:
+        print 'No. success'
+    else:
+        print 'No. failed'
+
     #cmd = netsh('WLAN', '5FLAB', '5FLAB_5G')
     #run(1, '5', test, cmd, '50:9a:4c:47:1e:ad')
     #print test.online_status('50:9a:4c:47:1e:ad')
@@ -400,25 +444,27 @@ if __name__ == '__main__':
     #sleep(300)
     #print test.wifi_ssid_set5('5FLAB_5G','11111111',hidden=0)
 
-    #print test.get_router_status()
-    #print test.get_router_status()['module']['device']['info']['mac']
-    while 1:
-        test.set_internet_dhcp()
-        time.sleep(20)
-        test.wifi_ssid_set5('Repo_issue5', '11111111', hidden=0, mode=1, channel=149, bandwidth=1)
-        time.sleep(5)
-        test.wifi_ssid_set24('Repo_issue24', '11111111', hidden=0, mode=2, channel=1, bandwidth=2)
-        time.sleep(20)
-        print test.get_router_status()
-        time.sleep(1)
-        test.set_internet_pppoe()
-        time.sleep(40)
-        test.wifi_ssid_set5('Repo_issue5', '11111111')
-        time.sleep(5)
-        test.wifi_ssid_set24('Repo_issue24', '11111111')
-        time.sleep(20)
-        print test.get_router_status()
-        time.sleep(1)
+    # while 1:
+    #     current_time1 = time.strftime('%H_%M_%S', time.localtime())
+    #     count1 = 1
+    #     print 'No.%d: %s' % (count1, current_time1)
+    #     count1 += 1
+    #     test.set_internet_dhcp()
+    #     time.sleep(20)
+    #     test.wifi_ssid_set5('Repo_issue5', '11111111', hidden=0, mode=1, channel=149, bandwidth=1)
+    #     time.sleep(5)
+    #     test.wifi_ssid_set24('Repo_issue24', '11111111', hidden=0, mode=2, channel=1, bandwidth=2)
+    #     time.sleep(20)
+    #     print test.get_router_status()
+    #     time.sleep(1)
+    #     test.set_internet_pppoe()
+    #     time.sleep(40)
+    #     test.wifi_ssid_set5('Repo_issue5', '11111111')
+    #     time.sleep(5)
+    #     test.wifi_ssid_set24('Repo_issue24', '11111111')
+    #     time.sleep(20)
+    #     print test.get_router_status()
+    #     time.sleep(1)
 
 
 
