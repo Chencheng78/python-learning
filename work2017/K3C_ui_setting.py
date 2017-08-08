@@ -161,7 +161,8 @@ class K3C(object):
 
     def register(self, method, region, ssid24, ssid5):
         reg = {"method": "set", "module": {"security": {"register": {"username":self.login, "password": self.password}}}, "_deviceType":"pc"}
-        timezone = {"method": "set", "module": {"time_zone": {"config": {"region": "10100"}}}, "_deviceType": "pc"}
+        timezone_na = {"method": "set", "module": {"time_zone": {"config": {"region": "00800"}}}, "_deviceType": "pc"}
+        timezone_eu = {"method": "set", "module": {"time_zone": {"config": {"area": "EU", "region": "10100"}}}, "_deviceType": "pc"}
         network_dhcp = {"method": "set", "module": {"network": {"wan": {"protocol": "dhcp"}, "dhcp": {}}}, "_deviceType": "pc"}
         network_pppoe = {"method": "set", "module": {"network": {"wan": {"protocol": "pppoe"}, "pppoe": {"username": "admin", "password": "admin"}}},
          "_deviceType": "pc"}
@@ -170,7 +171,7 @@ class K3C(object):
                                                   "wifi_2g_config": {"ssid": "%40PHICOMM_3A111", "password": ""},
                                                   "wifi_5g_config": {"ssid": "%40PHICOMM_3A_5G111", "password": ""}}},
          "_deviceType": "pc"}
-        timezone['module']['time_zone']['config']['region'] = region
+        #timezone['module']['time_zone']['config']['region'] = region
         wifi['module']['wireless']['wifi_2g_config']['ssid'] = ssid24
         wifi['module']['wireless']['wifi_5g_config']['ssid'] = ssid5
         r1 = requests.get('http://p.to/cgi-bin/pc/setLgPwd.htm', headers=self.headers)
@@ -180,9 +181,18 @@ class K3C(object):
 
         stok = json.loads(r2.content)['module']['security']['register']['stok']
         send_data = self.base_url + 'stok=' + stok + '/data'
-        r3 = requests.post(send_data, headers=self.headers, data=json.dumps(timezone))
+        if region == 'NA':
+            r3 = requests.post(send_data, headers=self.headers, data=json.dumps(timezone_na))
+            print r3.content
+        elif region == 'EU':
+            r3 = requests.post(send_data, headers=self.headers, data=json.dumps(timezone_eu))
+            print r3.content
+        elif region == 'CN':
+            pass
+            print 'Region CN do not support timezone config.'
+        else:
+            raise ValueError('Method should be either "CN", "EU" or "NA"')
         time.sleep(0.5)
-        print r3.content
         if method == 'DHCP':
             r4 = requests.post(send_data, headers=self.headers, data=json.dumps(network_dhcp))
         elif method == 'PPPoE':

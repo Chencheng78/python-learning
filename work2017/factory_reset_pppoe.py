@@ -4,7 +4,7 @@ from K3C_ui_setting import *
 from time import sleep
 
 if __name__ == '__main__':
-    for i in range(20):
+    for i in range(100):
         test = K3C('admin', 'admin')
         # print test.get_router_status()
         ret1 = test.reset()
@@ -28,7 +28,7 @@ if __name__ == '__main__':
         ssid_5 = u'K3C_TEST_5_%d' % i
         print ssid_24
         print ssid_5
-        ret2 = test.register('PPPoE', '00800', ssid_24, ssid_5)
+        ret2 = test.register('PPPoE', 'EU', ssid_24, ssid_5)
         if ret2:
             print 'Quick-Guide fail'
         else:
