@@ -67,6 +67,25 @@ class K3C(object):
         # === firmware upgrade === #
         # self.firmware
 
+        self.port_forwarding_switch = {"method": "set", "module": {"port_forward": {"config": {"enable": "1"}}}, "_deviceType": "pc"}
+        self.port_forwarding = {
+                                "method": "add",
+                                "module": {
+                                    "port_forward": {
+                                        "forward_list": {
+                                            "protocol": "",
+                                            "id": "",
+                                            "name": "",
+                                            "ip": "",
+                                            "extern_port_start": "",
+                                            "extern_port_end": "",
+                                            "inner_port_start": "",
+                                            "inner_port_end": ""
+                                        }
+                                    }
+                                },
+                                "_deviceType": "pc"
+                            }
     def get_stok(self):
         get_token = requests.post(self.base_url, data=json.dumps(self.login), headers=self.headers)
         stok = json.loads(get_token.content)['module']['security']['login']['stok']
@@ -82,7 +101,7 @@ class K3C(object):
         return r.content
 
     # MODE: 0=BGN, 1=BG ONLY, 2=N ONLY | CHANNEL: 0=AUTO; 1~13 | BANDWIDTH 0=20 1=20/40 2=40
-    def wifi_ssid_set24(self, ssid, password, hidden=0, mode=0, channel=0, bandwidth=1, ap_isolate=0):
+    def set_wireless_24g(self, ssid, password, hidden=0, mode=0, channel=0, bandwidth=1, ap_isolate=0):
         self.wifi_settings['module']['wireless']['wifi_2g_config']['ssid'] = str(ssid)
         self.wifi_settings['module']['wireless']['wifi_2g_config']['password'] = password
         self.wifi_settings['module']['wireless']['wifi_2g_config']['hidden'] = str(hidden)
@@ -95,7 +114,7 @@ class K3C(object):
         return r.content
 
     # MODE: 0=A/N/AC,1=N/AC ONLY | CHANNEL: 0=AUTO, 36~48;149~165 | BANDWIDTH: 0=20,1=40,2=80,3=20/40/80
-    def wifi_ssid_set5(self, ssid, password, hidden=0, mode=0, channel=0, bandwidth=3, ap_isolate=0):
+    def set_wireless_5g(self, ssid, password, hidden=0, mode=0, channel=0, bandwidth=3, ap_isolate=0):
         self.wifi_settings['module']['wireless']['wifi_5g_config']['ssid'] = str(ssid)
         self.wifi_settings['module']['wireless']['wifi_5g_config']['password'] = password
         self.wifi_settings['module']['wireless']['wifi_5g_config']['hidden'] = str(hidden)
@@ -107,9 +126,11 @@ class K3C(object):
         r = requests.post(send_data, headers=self.headers, data=json.dumps(self.wifi_settings))
         return r.content
 
-    def get_ssid(self):
-        return [self.wifi_settings['module']['wireless']['wifi_2g_config']['ssid'],
-                self.wifi_settings['module']['wireless']['wifi_5g_config']['ssid']]
+    def get_wirelessinfo(self):
+        send_data = self.base_url + 'stok=' + self.get_stok() + '/pc/wifiConfig.htm'
+        r = requests.get(send_data, headers=self.headers)
+        param = re.search(u'(var wirelessInfo = )({.*})', r.content)
+        return json.loads(param.group(2))
 
     # ==========DEVICE MANAGE=========== #
     def online_status(self, mac_addr):
@@ -175,9 +196,9 @@ class K3C(object):
         wifi['module']['wireless']['wifi_2g_config']['ssid'] = ssid24
         wifi['module']['wireless']['wifi_5g_config']['ssid'] = ssid5
         r1 = requests.get('http://p.to/cgi-bin/pc/setLgPwd.htm', headers=self.headers)
-        time.sleep(0.5)
+        time.sleep(2)
         r2 = requests.post(self.base_url, headers=self.headers, data=json.dumps(reg))
-        time.sleep(0.5)
+        time.sleep(5)
 
         stok = json.loads(r2.content)['module']['security']['register']['stok']
         send_data = self.base_url + 'stok=' + stok + '/data'
@@ -192,14 +213,14 @@ class K3C(object):
             print 'Region CN do not support timezone config.'
         else:
             raise ValueError('Method should be either "CN", "EU" or "NA"')
-        time.sleep(0.5)
+        time.sleep(5)
         if method == 'DHCP':
             r4 = requests.post(send_data, headers=self.headers, data=json.dumps(network_dhcp))
         elif method == 'PPPoE':
             r4 = requests.post(send_data, headers=self.headers, data=json.dumps(network_pppoe))
         else:
             raise ValueError('Method should be either "DHCP" or "PPPoE"')
-        time.sleep(0.5)
+        time.sleep(5)
         print r4.content
         r5 = requests.post(send_data, headers=self.headers, data=json.dumps(wifi))
         if r1.status_code == r2.status_code == r3.status_code == r4.status_code == r5.status_code == 200:
@@ -207,9 +228,37 @@ class K3C(object):
         else:
             return 1
 
+    def portforwarding_enable(self, enable=1):
+        self.port_forwarding_switch['module']['port_forward']['config']['enable'] = str(enable)
+        print self.port_forwarding_switch
+        send_data = self.base_url + 'stok=' + self.get_stok() + '/data'
+        sleep(2)
+        r = requests.post(send_data, headers=self.headers, data=json.dumps(self.port_forwarding_switch))
+        return r.status_code
+
+    # def portforwarding_settings(self, method, protocol, name, ip, external_start, external_end, internal_start, internal_end):
+    # kwargs = protocol, name, ip, external_start, external_end, internal_start, internal_end
+    # def portforwarding_settings(self, method, **kwargs):
+    #     self.port_forwarding['module']['port_forward']['forward_list']['protocol'] = kwargs['protocol']
+
+    def backup_download(self, filename):
+        send_data = self.base_url + 'stok=' + self.get_stok() + '/system/backup_download'
+        r = requests.get(send_data, headers=self.headers)
+        with open(filename, 'wb') as f:
+            f.write(r.content)
+            print 'Download success!'
+        return r.status_code
+
+    def backup_upload(self, filename):
+        send_data = self.base_url + 'stok=' + self.get_stok() + '/system/backup_upload'
+        backup_files = {'files': open(filename, 'rb')}
+        r = requests.post(send_data, files=backup_files)
+        return r.status_code
+
+
+
     def __repr__(self):
         return self.wifi_settings
-
 
 class netsh(object):
 
@@ -324,6 +373,15 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
         print()
 
 
+def ProgressBar_Wait(count, frequency):
+    items = list(range(0, count))
+    l = len(items)
+    printProgressBar(0, l, prefix='Progress:', suffix='Complete', length=50)
+    for j, item in enumerate(items):
+        sleep(frequency)
+        printProgressBar(j + 1, l, prefix='Progress:', suffix='Complete', length=50)
+
+
 def run(count, band, wifiset, command, mac):
     current_day = time.strftime('%Y_%m_%d', time.localtime())
     current_time = time.strftime('%H_%M_%S', time.localtime())
@@ -435,15 +493,21 @@ def run(count, band, wifiset, command, mac):
 
 if __name__ == '__main__':
     test = K3C('admin', 'admin')
-    ret3 = test.get_router_status()
-    ssid24 = 'K3C_TEST_24_0'
-    ssid5 = 'K3C_TEST_24_0'
-    if ret3['module']['network']['wan_status']['protocol'] == 'pppoe' and \
-                    ret3['module']['wireless']['wifi_2g_status']['ssid'] == ssid24 and \
-                    ret3['module']['wireless']['wifi_5g_status']['ssid'] == ssid5:
-        print 'No. success'
-    else:
-        print 'No. failed'
+    #ret = json.loads(test.get_wirelessinfo())
+    #print ret
+    #print ret['module']['wireless']['wifi_2g_config']['ssid']
+    #print ret
+    # test.backup_download('config.dat')
+    #test.backup_upload('config.dat')
+    # ret3 = test.get_router_status()
+    # ssid24 = 'K3C_TEST_24_0'
+    # ssid5 = 'K3C_TEST_24_0'
+    # if ret3['module']['network']['wan_status']['protocol'] == 'pppoe' and \
+    #                 ret3['module']['wireless']['wifi_2g_status']['ssid'] == ssid24 and \
+    #                 ret3['module']['wireless']['wifi_5g_status']['ssid'] == ssid5:
+    #     print 'No. success'
+    # else:
+    #     print 'No. failed'
 
     #cmd = netsh('WLAN', '5FLAB', '5FLAB_5G')
     #run(1, '5', test, cmd, '50:9a:4c:47:1e:ad')
