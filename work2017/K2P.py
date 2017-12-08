@@ -6,9 +6,9 @@ from time import sleep
 
 def login_k2p(driver, url, pwd):
 	driver.get(url)
-	WebDriverWait(driver, 10, ignored_exceptions=True).until(lambda x: x.find_element_by_xpath(".//*[@id='admin_pwd']").is_displayed())
+	WebDriverWait(driver, 10, ignored_exceptions=True).until(lambda x: x.find_element_by_xpath(".//*[@id='Pwd']").is_displayed())
 	driver.maximize_window()
-	driver.find_element_by_xpath(".//*[@id='admin_pwd']").send_keys(pwd)
+	driver.find_element_by_xpath(".//*[@id='Pwd']").send_keys(pwd)
 	driver.find_element_by_xpath("html/body/form/div/div[2]/button").click()
 	# try:
 	# 	WebDriverWait(driver, 15).until(lambda x: x.find_element_by_id("Later").is_displayed())

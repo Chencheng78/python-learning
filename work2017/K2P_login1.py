@@ -1,7 +1,6 @@
 # -*- coding:utf-8 -*-
 
 from selenium import webdriver
-from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import NoSuchElementException
 from time import sleep
@@ -114,7 +113,7 @@ def webui_finish(driver, t0, sheet, num, screenshots):
     sleep(5)
     while timeout < 200:
         try:
-            reboot_finish = driver.find_element_by_id("Pwd").is_displayed()
+            reboot_finish = driver.find_element_by_xpath(".//*[@id='Pwd']").is_displayed()
             t1 = time.time()
             time_webui = t1 - t0
             screenshots_name = screenshots + '\\success_%i.png' % num
@@ -176,7 +175,6 @@ def run(count):
             # t.setDaemon(True)
             t.start()
 
-
         for t in threads:
             t.join()
         # assert ret == 1
@@ -185,15 +183,10 @@ def run(count):
         else:
             sheet.write(i, 4, 'Fail')
         driver.close()
-    book.save(r'k:/Reboot/Reboot_%s/test_%s.csv' % (current_day, current_time))
+        book.save(r'k:/Reboot/Reboot_%s/test_%s.csv' % (current_day, current_time))
+    # book.save(r'k:/Reboot/Reboot_%s/test_%s.csv' % (current_day, current_time))
 
 
 if __name__ == '__main__':
-    driver = webdriver.Firefox()
-    driver.get('http://p.to')
-    driver.maximize_window()
-    sleep(5)
-    a = driver.find_element_by_xpath(".//*[@id='Save']")
-    act = ActionChains(driver)
-    act.move_to_element(a).click().perform()
-
+    ret = 1
+    run(int(sys.argv[1]))
