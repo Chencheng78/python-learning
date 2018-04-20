@@ -5,10 +5,17 @@ import json
 import base64
 
 
-class N2_API(object):
+class N2(object):
 
     def __init__(self, ipaddr):
         self.url = 'http://' + ipaddr + ':3000'
+
+    '''
+    API interaction
+    
+    Input: data, headers....
+    Output: HTTP response content.
+    '''
 
     def get_users(self):
         url = self.url + '/users'
@@ -31,13 +38,12 @@ class N2_API(object):
         url = self.url + '/drives'
         req = requests.get(url, headers=headers)
         return req
-
-
-class N2_Action(object):
-
-    def __init__(self):
-        pass
-
+    '''
+    Data Process
+    
+    Input: HTTP response.
+    Output: The interested data/value.
+    '''
     @staticmethod
     def user_uuid(user, user_list):
         for i in range(len(user_list)):
@@ -46,10 +52,7 @@ class N2_Action(object):
 
 if __name__ == '__main__':
     nas = N2('10.5.51.58')
-    print nas.headers
-    #print nas.get_user_uuid('admin')
-    print nas.get_token('admin', 'admin')
-    print nas.headers
+
 
 # headers = {'User-Agent': 'node-superagent/3.8.2', 'Authorization': ''}
 # auth_str = 'JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiN2JkYWI1MDItZmY3ZC00ODJiLTkyZWEtY2JmOGE1ZWE2MWJmIn0.4c-0aTBZ_IBNQ1h8LTtHOpIAkyVM4ZIZ-U7RBi_eaHY'
