@@ -12,9 +12,9 @@ def div2(num,size=2):
 # 	for i in l:
 # 		if len(i)==1:
 
-		# l2.append(l[i][0])
-		# if type(l[i][1]) == list:
-		# 	flat(l[i][1])
+# l2.append(l[i][0])
+# if type(l[i][1]) == list:
+# 	flat(l[i][1])
 
 print(div2(20))
 print(div2(10,3))
