@@ -14,7 +14,7 @@ def solve_coin_change(coins, value):
                     table[i].append(coin)
 
     if table[-1] != None:
-        print( '%d coins: %s' % (len(table[-1]), table[-1]))
+        print( '%d coins: %s' % (len(table[-1]), table))
     else:
         print('No solution possible')
 

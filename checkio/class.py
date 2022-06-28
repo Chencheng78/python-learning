@@ -75,8 +75,12 @@ class Motorcycle(Vehicle):
     def vehicle_type(self):
         """"Return a string representing the type of vehicle this is."""
         return 'motorcycle'
+    
+    # def __eq__(self, __o: object) -> bool:
+    #     print(__o)
+    #     print(self.vehicle_type)
+    #     return 1 if (__o == self.vehicle_type()) else 0
 
 moto = Motorcycle(20000,'Honda','GP',2017,None)
-print moto.sale_price()
-print moto.purchase_price()
-print moto.vehicle_type()
+
+print(moto == 'motorcycle')
